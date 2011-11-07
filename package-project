@@ -6,8 +6,10 @@
 # 2: source dir
 # [3]: target folder
 
-manifest="$1"
-source_folder="$2"
+set -e
+
+source_folder="$1"
+manifest="$source_folder/other/manifest"
 target_folder="$3"
 
 package_folder="/tmp/package-project-$$"
@@ -38,11 +40,11 @@ fi
 
 
 
-if ! mkdir "$package_folder"
-then 
-	echo "Error: could not create temp dir $package_folder" >&2
-	exit 1
-fi
+mkdir "$package_folder"
+
+
+# From this point forward we need to delet the temp folder if anything fails.
+trap 'chmod -R u+w $package_folder ; rm -rf "$package_folder"; exit $?' INT TERM EXIT
 
 
 if [ -z "$target_folder" ] 
@@ -52,54 +54,51 @@ else
 	if ! [ -d "$target_folder" ]
 	then
 		echo "Warning: $target_folder is not a directory, using target of '.' as target" >&2
-		rm -rf "$package_folder"
 		target_folder='.'
 	fi
 fi
 
 
 IFS=':'
-grep -v '^#' "$manifest" | while read action source_file target_file 
+grep -v '^#' "$manifest" | while read action source_file target_file file_mode
 do
-	if [ -n "$action" -a -n "$source_file" -a -n "$target_file" ] 
+	if [ -n "$action" ] 
 	then
-		echo "Processing: $action : $source_file : $target_file"
-
-		if ! mkdir -p `dirname "$package_folder/$target_file"`
-		then
-			echo "Error: could not create $package_folder/$target_file" >&2
-			rm -rf "$packge_folder"
-			exit 1
-		fi
+		echo "Processing: $action - $source_file - $target_file"
+		mkdir -p `dirname "$package_folder/$target_file"`
 
 		if [ -e "$package_folder/$target_file" ]
 		then
 			echo "Error: file already exists $package_folder/$target_file" >&2
-			rm -rf "$package_folder"
 			exit 1
 		fi
 
 		if [ "$action" = 'file' ]
 		then
-			if ! cp -r "$source_folder/$source_file" "$package_folder/$target_file"
+			cp -r "$source_folder/$source_file" "$package_folder/$target_file"
+			if [ -n "$file_mode" ]
 			then
-				echo "Error: could not copy $source_folder/$source_file to $package_folder/$target_file" >&2
-				rm -rf "$package_folder"
-				exit 1
+				chmod -R "$file_mode" "$package_folder/$target_file"
 			fi
-		else if [ "$action" = 'link' ]
+		elif [ "$action" = 'link' ]
+		then
+			ln -s "$source_file" "$package_folder/$target_file"
+		elif [ "$action" = 'dir' ]
+		then
+			mkdir -p "$package_folder/$target_file"
+			if [ -n "$file_mode" ]
 			then
-				if ! ln -s "$source_file" "$package_folder/$target_file"
-				then
-					echo "Error: could not create link $package_folder/$target_file" >&2
-					rm -rf "$package_folder"
-					exit 1
-				fi
-			else 
-				echo "Error: unknown action $action" >&2
-				rm -rf "$package_folder"
-				exit 1
+				chmod -R "$file_mode" "$package_folder/$target_file"
 			fi
-		fi
+		else 
+			echo "Error: unknown action $action" >&2
+			exit 1
+		fi 
 	fi
 done
+
+find "$package_folder" -name .svn -exec rm -rf {} +
+
+fakeroot dpkg-deb --build "$package_folder" "$target_folder"
+
+exit 0
