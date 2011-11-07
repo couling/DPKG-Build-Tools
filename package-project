@@ -1,0 +1,105 @@
+#!/bin/bash
+
+# Builds a project based on a manifest file.
+# Parameters (bracketed are optional).
+# 1: manifest file
+# 2: source dir
+# [3]: target folder
+
+manifest="$1"
+source_folder="$2"
+target_folder="$3"
+
+package_folder="/tmp/package-project-$$"
+
+if [ -z "$manifest" ]
+then
+	echo "Error: No manifest specifed" >&2
+	exit 1
+fi
+
+if ! [ -f "$manifest" ]
+then
+	echo "Error: manifest $manifest does not exist or is not a regular file" >&2
+	exit 1
+fi
+
+if [ -z "$source_folder" ] 
+then
+	echo "Error: no source folder specified" >&2
+	exit 1
+fi
+
+if ! [ -d "$source_folder" ]
+then
+	echo "source folder $source_folder does not exist or is not a folder" >&2
+	exit 1
+fi
+
+
+
+if ! mkdir "$package_folder"
+then 
+	echo "Error: could not create temp dir $package_folder" >&2
+	exit 1
+fi
+
+
+if [ -z "$target_folder" ] 
+then
+	target_folder='.'
+else 
+	if ! [ -d "$target_folder" ]
+	then
+		echo "Warning: $target_folder is not a directory, using target of '.' as target" >&2
+		rm -rf "$package_folder"
+		target_folder='.'
+	fi
+fi
+
+
+IFS=':'
+grep -v '^#' "$manifest" | while read action source_file target_file 
+do
+	if [ -n "$action" -a -n "$source_file" -a -n "$target_file" ] 
+	then
+		echo "Processing: $action : $source_file : $target_file"
+
+		if ! mkdir -p `dirname "$package_folder/$target_file"`
+		then
+			echo "Error: could not create $package_folder/$target_file" >&2
+			rm -rf "$packge_folder"
+			exit 1
+		fi
+
+		if [ -e "$package_folder/$target_file" ]
+		then
+			echo "Error: file already exists $package_folder/$target_file" >&2
+			rm -rf "$package_folder"
+			exit 1
+		fi
+
+		if [ "$action" = 'file' ]
+		then
+			if ! cp -r "$source_folder/$source_file" "$package_folder/$target_file"
+			then
+				echo "Error: could not copy $source_folder/$source_file to $package_folder/$target_file" >&2
+				rm -rf "$package_folder"
+				exit 1
+			fi
+		else if [ "$action" = 'link' ]
+			then
+				if ! ln -s "$source_file" "$package_folder/$target_file"
+				then
+					echo "Error: could not create link $package_folder/$target_file" >&2
+					rm -rf "$package_folder"
+					exit 1
+				fi
+			else 
+				echo "Error: unknown action $action" >&2
+				rm -rf "$package_folder"
+				exit 1
+			fi
+		fi
+	fi
+done
