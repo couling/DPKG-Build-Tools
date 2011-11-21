@@ -34,11 +34,9 @@ fi
 
 if ! [ -d "$source_folder" ]
 then
-	echo "source folder $source_folder does not exist or is not a folder" >&2
+	echo "Error: source folder $source_folder does not exist or is not a folder" >&2
 	exit 1
 fi
-
-
 
 mkdir "$package_folder"
 
