@@ -25,4 +25,7 @@
 #   	This MUST NOT have a leading slash.
 #
 
+dir::DEBIAN:755
+file:control:DEBIAN/control:555
+
 file:package-project:/usr/bin/package-project:755
