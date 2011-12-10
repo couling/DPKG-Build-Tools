@@ -9,7 +9,7 @@
 #
 # Instructional lines are formed of four sections separated by colons ':'.
 #
-# action:source:target:mode
+# action:source:target:file-mode
 # - action 
 #	currently supports "file", "dir" and "link"
 #		file adds a file from the project to the target system (dirs are created automatically).

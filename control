@@ -3,7 +3,7 @@ Version: 0.0.2
 Section: admin
 Priority: optional
 Architecture: all
-Depends: bash (>= 4.2-0ubuntu4), dpkg-dev (>= 1.16.0.3ubuntu5)
+Depends: bash (>= 4.2), dpkg-dev (>= 1.16.0.3ubuntu5)
 Suggests: 
 Conflicts:
 Replaces:
