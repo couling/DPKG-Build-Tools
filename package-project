@@ -73,32 +73,21 @@ do
 
 		if [ "$action" = 'file' ]
 		then
-			eval "cp -r \"$source_folder/$source_file\" \"$package_folder/$target_file\""
+			cp -r "$source_folder/$source_file" "$package_folder/$target_file"
 			if [ -n "$file_mode" ]
 			then
-				eval "chmod -R \"$file_mode\" \"$package_folder/$target_file\""
+				chmod -R "$file_mode" "$package_folder/$target_file"
 			fi
 		elif [ "$action" = 'link' ]
 		then
-			eval "ln -s \"$source_file\" \"$package_folder/$target_file\""
+			ln -s "$source_file" "$package_folder/$target_file"
 		elif [ "$action" = 'dir' ]
 		then
-			eval "mkdir -p \"$package_folder/$target_file\""
+			mkdir -p "$package_folder/$target_file"
 			if [ -n "$file_mode" ]
 			then
-				eval "chmod -R \"$file_mode\" \"$package_folder/$target_file\""
+				chmod -R "$file_mode" "$package_folder/$target_file"
 			fi
-		elif [ "$action" = 'properties' ]
-		then
-			while read line
-			do
-				new_property="${line%%=*}"
-				new_value="${line#*=}"
-				if [ -n "$new_value" ]
-				then
-				    "$new_property"="$new_value"
-				fi
-			done < "$source_file"
 		else 
 			echo "Error: unknown action $action" >&2
 			exit 1
