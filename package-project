@@ -9,7 +9,7 @@
 set -e
 
 source_folder="$1"
-manifest="$source_folder/${2}"
+manifest="${2}"
 target_folder="$3"
 
 package_folder="/tmp/package-project-$$"
