@@ -29,3 +29,4 @@ dir::DEBIAN:755
 file:control:DEBIAN/control:555
 
 file:package-project:/usr/bin/package-project:755
+file:package-archive-rebuild:/usr/bin/package-archive-rebuild:755

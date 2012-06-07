@@ -1,0 +1,52 @@
+#!/bin/bash
+
+function calc_sums() {
+	echo $1':' >> $archive/Release
+	for section in "$archive"/*/
+	do
+		find $section -type f -exec $2 '{}' '+' | while read sum file
+		do
+			echo "" $sum "`printf '% 16d' \`ls -l $file | awk '{print $5}'\``" $file
+		done
+	done >> "$archive"/Release
+
+}
+
+cd $1 || exit 1
+
+shift 1
+
+for archive in "$@"
+do 
+	archive="dists/$archive"
+	echo "Archive: `pwd`/$archive"
+
+	for arch in "$archive"/*/*/
+	do
+		arch="${arch%/}"
+		if [ "${arch##*/}" != binary-all ]
+		then
+			echo Building: ${arch}/Packages.gz
+			dpkg-scanpackages "${arch}" | gzip -9 > "${arch}/Packages.gz"
+			arch_all="${arch%/*}/binary-all"
+			if [ -d "$arch_all" ]
+			then
+				echo Including: "$arch_all"
+				dpkg-scanpackages "$arch_all" | gzip -9 >> "${arch}/Packages.gz"
+			else
+				echo Warning: "$arch_all" does not exist
+			fi
+		fi
+	done
+
+	cat "$archive/ReleaseHeader" > "$archive/Release" || exit 1
+	echo "Date: `date`" >> "$archive/Release"
+	echo Architectures: `for file in "$archive"/*/*/ ; do file="${file#$archive/*/}" ; echo ${file%*/} ; done | 
+		sort -u` >> $archive/Release
+	echo Components: `for file in "$archive"/*/ ; do echo ${file%/} ; done` >> $archive/Release
+
+	calc_sums MD5Sum md5sum
+	calc_sums SHA1   shasum
+	calc_sums SHA256 'shasum -a 256'
+
+done
