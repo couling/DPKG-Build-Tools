@@ -60,6 +60,7 @@ fi
 IFS=':'
 grep -v '^#' "$manifest" | while read action source_file target_file file_mode
 do
+	target_file="${target_file#/}"
 	if [ -n "$action" ] 
 	then
 		echo "Processing: $action - $source_file - $target_file"
