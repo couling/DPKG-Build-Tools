@@ -42,7 +42,7 @@ mkdir "$package_folder"
 
 
 # From this point forward we need to delet the temp folder if anything fails.
-trap 'chmod -R u+w $package_folder ; rm -rf "$package_folder"; exit $?' INT TERM EXIT
+trap 'chmod -R u+w $package_folder ; rm -rf "$package_folder" "$package_folder.manifest"; exit $?' INT TERM EXIT
 
 
 if [ -z "$target_folder" ] 
@@ -58,7 +58,8 @@ fi
 
 
 IFS=':'
-grep -v '^#' "$manifest" | while read action source_file target_file file_mode
+grep -v '^#' "$manifest" > "$package_folder.manifest"
+while read action source_file target_file file_mode
 do
 	target_file="${target_file#/}"
 	if [ -n "$action" ] 
@@ -89,12 +90,41 @@ do
 			then
 				chmod -R "$file_mode" "$package_folder/$target_file"
 			fi
+		elif [ "$action" = 'control' ]
+		then
+			if [ "$target_file" != 'DEBIAN/control' ]
+			then
+				echo "Error: control files MUST have a target of DEBIAN/control"
+			fi
+			grep -v '^Version:' "$source_folder/$source_file" | grep -v 'Installed-Size:' > "$package_folder/DEBIAN/control"
+			version=`awk '-F:' '/^Version:/ {print $2}' "$source_folder/$source_file"`
 		else 
 			echo "Error: unknown action $action" >&2
 			exit 1
 		fi 
 	fi
-done
+done < "$package_folder.manifest"
+
+(
+	cd "$package_folder" ; 
+	for file in * 
+	do
+		if [ "$file" != DEBIAN ]
+		then
+			find $file -type f -exec md5sum  '{}' + >> "$package_folder/DEBIAN/md5sums"
+		fi
+	done
+)
+if which svn > /dev/null
+then
+	version="${version}r`svn info $source_folder | awk '-F:' '/^Revision:/ {gsub(/ /,"",$2); print $2}'`"
+fi
+echo "Version: ${version}" >> "$package_folder/DEBIAN/control"
+
+size=`find "$package_folder" -type f -exec ls -l  '{}' ';' | awk 'BEGIN {x=0} {x=x+$5} END {print int((x+1023)/1024)}'`
+echo "Installed-Size: $size" >> "$package_folder/DEBIAN/control"
+
+chmod 555 "$package_folder/DEBIAN/control"
 
 find "$package_folder" -name .svn -exec rm -rf {} +
 

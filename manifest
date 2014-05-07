@@ -13,20 +13,22 @@
 # - action 
 #	currently supports "file", "dir" and "link"
 #		file adds a file from the project to the target system (dirs are created automatically).
-#       dir creates an empty dir and or changes it's mode.
+#		dir creates an empty dir and or changes it's mode.
 #		link creates a symbolic link on the target system.
 #
 # - source 
 #		link: must be a file relative to a file on the target system, this may be 
-#   		a file provided by the project or one expected to exist already on the target system
-#   	file: must be a file provided by the project being packaged
+#			a file provided by the project or one expected to exist already on the target system
+#		file: must be a file provided by the project being packaged
 #		dir: file is ignored.
 # - target: must be a be a location RELATIVE to the root of the target system.
-#   	This MUST NOT have a leading slash.
+#		This MUST NOT have a leading slash.
 #
 
 dir::DEBIAN:755
-file:control:DEBIAN/control:555
+control:control:DEBIAN/control:
 
-file:package-project:/usr/bin/package-project:755
-file:package-archive-rebuild:/usr/bin/package-archive-rebuild:755
+file:package-project:usr/bin/package-project:755
+
+#removed in favour of reprepro
+#file:package-archive-rebuild:usr/bin/package-archive-rebuild:755
