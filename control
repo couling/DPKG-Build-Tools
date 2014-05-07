@@ -1,5 +1,5 @@
 Package: couling-package-project
-Version: 1.3.1
+Version: 1.3.2
 Section: devel
 Priority: optional
 Architecture: all
@@ -7,7 +7,6 @@ Depends: bash, dpkg-dev, repro
 Suggests: 
 Conflicts:
 Replaces:
-Installed-Size: 3
 Maintainer: Philip Couling <couling@gmail.org>
 Description: DpkgBuildTools is a simple script for building a dpkg from a manifest 
  file.  

@@ -29,6 +29,6 @@ dir::DEBIAN:755
 control:control:DEBIAN/control:
 
 file:package-project:usr/bin/package-project:755
-
+file:package-add:usr/bin/package-add:755
 #removed in favour of reprepro
 #file:package-archive-rebuild:usr/bin/package-archive-rebuild:755

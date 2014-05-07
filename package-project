@@ -119,7 +119,7 @@ if which svn > /dev/null
 then
 	version="${version}r`svn info $source_folder | awk '-F:' '/^Revision:/ {gsub(/ /,"",$2); print $2}'`"
 fi
-echo "Version: ${version}" >> "$package_folder/DEBIAN/control"
+echo "Version:${version}" >> "$package_folder/DEBIAN/control"
 
 size=`find "$package_folder" -type f -exec ls -l  '{}' ';' | awk 'BEGIN {x=0} {x=x+$5} END {print int((x+1023)/1024)}'`
 echo "Installed-Size: $size" >> "$package_folder/DEBIAN/control"
