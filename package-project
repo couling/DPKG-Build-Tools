@@ -117,7 +117,7 @@ done < "$package_folder.manifest"
 )
 if which svn > /dev/null
 then
-	version="${version}.`svn info $source_folder | awk '-F:' '/^Revision:/ {gsub(/ /,"",$2); print $2}'`"
+	version="${version}r`svn info $source_folder | awk '-F:' '/^Revision:/ {gsub(/ /,"",$2); print $2}'`"
 fi
 echo "Version:${version}" >> "$package_folder/DEBIAN/control"
 
