@@ -29,7 +29,7 @@ function build {
 
 
     # From this point forward we need to delet the temp folder if anything fails.
-    trap 'chmod -R u+w $package_folder ; rm -rf "$package_folder" "$package_folder.manifest"; exit $?' INT TERM EXIT
+    trap 'x=$? ; chmod -R u+w $package_folder ; rm -rf "$package_folder" "$package_folder.manifest"; exit $x' INT TERM EXIT
 
     mkdir -p "$package_folder/DEBIAN"
     chmod 755 "$package_folder/DEBIAN"
