@@ -33,3 +33,4 @@ control:control
 
 file:package-project:usr/bin/package-project:755
 file:package-archive-rebuild:usr/bin/package-archive-rebuild:755
+file:package-push:usr/bin/package-push:755
