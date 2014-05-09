@@ -11,24 +11,25 @@
 #
 # action:source:target:file-mode
 # - action 
-#	currently supports "file", "dir" and "link"
-#		file adds a file from the project to the target system (dirs are created automatically).
-#		dir creates an empty dir and or changes it's mode.
-#		link creates a symbolic link on the target system.
+#   currently supports "file", "dir", "link", control and source
+#       file adds a file from the project to the target system (dirs are created automatically).
+#       dir creates an empty dir and or changes it's mode.
+#       link creates a symbolic link on the target system.
 #
 # - source 
-#		link: must be a file relative to a file on the target system, this may be 
-#			a file provided by the project or one expected to exist already on the target system
-#		file: must be a file provided by the project being packaged
-#		dir: file is ignored.
+#       ink: must be a file relative to a file on the target system, this may be 
+#           a file provided by the project or one expected to exist already on the target system
+#       file: must be a file provided by the project being packaged
+#       dir: file is ignored.
 # - target: must be a be a location RELATIVE to the root of the target system.
-#		This MUST NOT have a leading slash.
-#
-
-dir::DEBIAN:755
-control:control:DEBIAN/control:
+#       This MUST NOT have a leading slash.
+# - control: copies a file to DEBIAN/control. If SVN in installed and the current source file in 
+#       a working copy, the revision number will be appended to the version number. Also the size
+#       will be replaced by the actual size
+# - source: changes the current working directory from this point forward in the file.
+#       This is very helpful when the manifest exists in a subdirectory of the project.
+#       The path is always relative to the manifest file.
+control:control
 
 file:package-project:usr/bin/package-project:755
-file:package-add:usr/bin/package-add:755
-#removed in favour of reprepro
-#file:package-archive-rebuild:usr/bin/package-archive-rebuild:755
+file:package-archive-rebuild:usr/bin/package-archive-rebuild:755

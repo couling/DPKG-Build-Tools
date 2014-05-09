@@ -1,133 +1,131 @@
 #!/bin/bash
 
 # Builds a project based on a manifest file.
-# Parameters (bracketed are optional).
-# 1: manifest file
-# 2: source dir
-# [3]: target folder
 
 set -e
 
-source_folder="$1"
-manifest="${2}"
-target_folder="$3"
+function build {
+    source_folder=`dirname "$manifest"`
+    source_folder=`readlink -m "$source_folder"`
+    package_folder="/tmp/package-project-$$"
 
-package_folder="/tmp/package-project-$$"
+    if [ -z "$manifest" ]
+    then
+        echo "Error: No manifest specifed" >&2
+        exit 1
+    fi
 
-if [ -z "$manifest" ]
-then
-	echo "Error: No manifest specifed" >&2
-	exit 1
-fi
+    if ! [ -f "$manifest" ]
+    then
+        echo "Error: manifest $manifest does not exist or is not a regular file" >&2
+        exit 1
+    fi
 
-if ! [ -f "$manifest" ]
-then
-	echo "Error: manifest $manifest does not exist or is not a regular file" >&2
-	exit 1
-fi
-
-if [ -z "$source_folder" ] 
-then
-	echo "Error: no source folder specified" >&2
-	exit 1
-fi
-
-if ! [ -d "$source_folder" ]
-then
-	echo "Error: source folder $source_folder does not exist or is not a folder" >&2
-	exit 1
-fi
-
-mkdir "$package_folder"
+    if [ -d "$package_folder" ]
+    then
+        rm -rf "$package_folder"
+    fi
+    mkdir "$package_folder"
 
 
-# From this point forward we need to delet the temp folder if anything fails.
-trap 'chmod -R u+w $package_folder ; rm -rf "$package_folder" "$package_folder.manifest"; exit $?' INT TERM EXIT
+    # From this point forward we need to delet the temp folder if anything fails.
+    trap 'chmod -R u+w $package_folder ; rm -rf "$package_folder" "$package_folder.manifest"; exit $?' INT TERM EXIT
 
+    mkdir -p "$package_folder/DEBIAN"
+    chmod 755 "$package_folder/DEBIAN"
+    
+    IFS=':'
+    grep -v '^#' "$manifest" > "$package_folder.manifest"
+    while read action source_file target_file file_mode
+    do
+        target_file="${target_file#/}"
+        if [ -n "$action" ] 
+        then
+            echo "Processing: $action - $source_file - $target_file"
+            mkdir -p `dirname "$package_folder/$target_file"`
 
-if [ -z "$target_folder" ] 
-then
-	target_folder='.'
-else 
-	if ! [ -d "$target_folder" ]
-	then
-		echo "Warning: $target_folder is not a directory, using target of '.' as target" >&2
-		target_folder='.'
-	fi
-fi
+            if [ "$action" = 'file' ]
+            then
+                if [ -e "$package_folder/$target_file" ]
+                then
+                    echo "Error: file already exists $package_folder/$target_file" >&2
+                    exit 1
+                fi
+                cp -r "$source_folder/$source_file" "$package_folder/$target_file"
+                if [ -n "$file_mode" ]
+                then
+                    chmod -R "$file_mode" "$package_folder/$target_file"
+                fi
+            elif [ "$action" = 'link' ]
+            then
+                if [ -e "$package_folder/$target_file" ]
+                then
+                    echo "Error: file already exists $package_folder/$target_file" >&2
+                    exit 1
+                fi
+                ln -s "$source_file" "$package_folder/$target_file"
+            elif [ "$action" = 'dir' ]
+            then
+                if [ -e "$package_folder/$target_file" ]
+                then
+                    echo "Error: file already exists $package_folder/$target_file" >&2
+                    exit 1
+                fi
+                mkdir -p "$package_folder/$target_file"
+                if [ -n "$file_mode" ]
+                then
+                    chmod -R "$file_mode" "$package_folder/$target_file"
+                fi
+            elif [ "$action" = 'control' ]
+            then
+                if [ -e "$package_folder/DEBIAN/control" ]
+                then
+                    echo "Error: file already exists $package_folder/$target_file" >&2
+                    exit 1
+                fi
+                grep -v '^Version:' "$source_folder/$source_file" | grep -v 'Installed-Size:' > "$package_folder/DEBIAN/control"
+                version=`awk '-F:' '/^Version:/ {print $2}' "$source_folder/$source_file"`
+            elif [ "$action" = 'source' ]
+            then
+                source_folder=`dirname "$manifest"`/"$source_file"
+                source_folder=`readlink -m "$source_folder"`
+            else 
+                echo "Error: unknown action $action" >&2
+                exit 1
+            fi 
+        fi
+    done < "$package_folder.manifest"
 
+    (
+        cd "$package_folder" ; 
+        for file in * 
+        do
+            if [ "$file" != DEBIAN ]
+            then
+                find $file -type f -exec md5sum  '{}' + >> "$package_folder/DEBIAN/md5sums"
+            fi
+        done
+    )
+    if which svn > /dev/null
+    then
+        version="${version}r`svn info $source_folder | awk '-F:' '/^Revision:/ {gsub(/ /,"",$2); print $2}'`"
+    fi
+    echo "Version:${version}" >> "$package_folder/DEBIAN/control"
 
-IFS=':'
-grep -v '^#' "$manifest" > "$package_folder.manifest"
-while read action source_file target_file file_mode
+    size=`find "$package_folder" -type f -exec ls -l  '{}' ';' | awk 'BEGIN {x=0} {x=x+$5} END {print int(x/1024)}'`
+    echo "Installed-Size: $size" >> "$package_folder/DEBIAN/control"
+
+    chmod 555 "$package_folder/DEBIAN/control"
+
+    find "$package_folder" -name .svn -exec rm -rf {} +
+
+    fakeroot dpkg-deb --build "$package_folder" .
+
+}
+
+for manifest in "$@"
 do
-	target_file="${target_file#/}"
-	if [ -n "$action" ] 
-	then
-		echo "Processing: $action - $source_file - $target_file"
-		mkdir -p `dirname "$package_folder/$target_file"`
-
-		if [ -e "$package_folder/$target_file" ]
-		then
-			echo "Error: file already exists $package_folder/$target_file" >&2
-			exit 1
-		fi
-
-		if [ "$action" = 'file' ]
-		then
-			cp -r "$source_folder/$source_file" "$package_folder/$target_file"
-			if [ -n "$file_mode" ]
-			then
-				chmod -R "$file_mode" "$package_folder/$target_file"
-			fi
-		elif [ "$action" = 'link' ]
-		then
-			ln -s "$source_file" "$package_folder/$target_file"
-		elif [ "$action" = 'dir' ]
-		then
-			mkdir -p "$package_folder/$target_file"
-			if [ -n "$file_mode" ]
-			then
-				chmod -R "$file_mode" "$package_folder/$target_file"
-			fi
-		elif [ "$action" = 'control' ]
-		then
-			if [ "$target_file" != 'DEBIAN/control' ]
-			then
-				echo "Error: control files MUST have a target of DEBIAN/control"
-			fi
-			grep -v '^Version:' "$source_folder/$source_file" | grep -v 'Installed-Size:' > "$package_folder/DEBIAN/control"
-			version=`awk '-F:' '/^Version:/ {print $2}' "$source_folder/$source_file"`
-		else 
-			echo "Error: unknown action $action" >&2
-			exit 1
-		fi 
-	fi
-done < "$package_folder.manifest"
-
-(
-	cd "$package_folder" ; 
-	for file in * 
-	do
-		if [ "$file" != DEBIAN ]
-		then
-			find $file -type f -exec md5sum  '{}' + >> "$package_folder/DEBIAN/md5sums"
-		fi
-	done
-)
-if which svn > /dev/null
-then
-	version="${version}r`svn info $source_folder | awk '-F:' '/^Revision:/ {gsub(/ /,"",$2); print $2}'`"
-fi
-echo "Version:${version}" >> "$package_folder/DEBIAN/control"
-
-size=`find "$package_folder" -type f -exec ls -l  '{}' ';' | awk 'BEGIN {x=0} {x=x+$5} END {print int((x+1023)/1024)}'`
-echo "Installed-Size: $size" >> "$package_folder/DEBIAN/control"
-
-chmod 555 "$package_folder/DEBIAN/control"
-
-find "$package_folder" -name .svn -exec rm -rf {} +
-
-fakeroot dpkg-deb --build "$package_folder" "$target_folder"
+    build
+done
 
 exit 0

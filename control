@@ -3,10 +3,10 @@ Version: 1.4
 Section: devel
 Priority: optional
 Architecture: all
-Depends: bash, dpkg-dev, repro
-Suggests: none 
-Conflicts: none
-Replaces: none
+Depends: bash, dpkg-dev, gpgv
+Suggests:
+Conflicts:
+Replaces:
 Maintainer: Philip Couling <couling@gmail.org>
 Description: DpkgBuildTools is a simple script for building a dpkg from a manifest 
  file.  
