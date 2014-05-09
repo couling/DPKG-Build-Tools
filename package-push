@@ -1,0 +1,56 @@
+#!/bin/bash
+
+if [ -f ~/.package-push ]
+then
+	. ~/.package-push
+fi
+
+if [ -z "$ARCHIVE" ]
+then
+	ARCHIVE=.
+fi
+
+if [ -z "$DIST" ]
+then
+	DIST=foo
+fi
+
+if [ -z "$RELEASE" ]
+then
+	RELEASE=bar
+fi
+
+if ! [ -d "$ARCHIVE/dists" ]
+then
+	echo "$ARCHIVE" is not an archive 1>&2
+	exit 1
+fi
+
+set -e
+
+if [ $# -le 0 ]
+then
+	echo too few args 1>&2
+	echo expected "$0" <.deb> [ <.deb> ... ]
+	exit 1
+fi
+
+
+for file in "$@"
+do
+	arch="${file##*_}"
+	arch="${arch%.deb}"
+	if ! [ -d "$ARCHIVE/dists/$DIST/$RELEASE/binary-$arch" ]
+	then
+		echo repository arch "$arch" 1>&2
+		exit 1
+	fi
+	cp "$@" "$ARCHIVE/dists/$DIST/$RELEASE/binary-${arch}"
+done
+
+
+package-archive-rebuild "$ARCHIVE" "$DIST"
+if [ -n "$SET_GROUP" ]
+then
+	chgrp -R www-data "$ARCHIVE"
+fi
