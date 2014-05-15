@@ -1,0 +1,4 @@
+ARCHIVE=/srv/apache/www.pedal.me.uk/content/packages
+DIST=personal
+RELEASE=server
+SET_GROUP=www-data
