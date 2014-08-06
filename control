@@ -7,6 +7,6 @@ Depends: bash, dpkg-dev, gnupg
 Suggests:
 Conflicts:
 Replaces:
-Maintainer: Philip Couling <couling@gmail.org>
+Maintainer: Philip Couling <couling@gmail.com>
 Description: DpkgBuildTools is a simple script for building a dpkg from a manifest 
  file.  
