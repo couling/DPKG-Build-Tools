@@ -2,9 +2,9 @@
 # This file is used by the package-project script in the 
 # DpkgBuildTools project to build a build a dpkg package from this project
 #
-# This quite simply lists which files from this project to put where.
-# Blank lines and lines starting with a '#' are ignored as comments and
-# white space. The special folder DEBIAN is used by dpkg-deb automatically 
+# This quite simply lists which files from this project to put where on the target system.
+# Blank lines and lines starting with a '#' are ignored as white space and comments and. 
+# The special folder DEBIAN is used by dpkg-deb automatically 
 # to control the project.
 #
 # Instructional lines are formed of four sections separated by colons ':'.
@@ -13,8 +13,17 @@
 # - action 
 #   currently supports "file", "dir", "link", control and source
 #       file adds a file from the project to the target system (dirs are created automatically).
-#       dir creates an empty dir and or changes it's mode.
+#            this can also be used to place entire directories
+#       dir creates an empty dir and or changes it's mode. This is useful when the parent dir
+#            should have very different permissions to its children
 #       link creates a symbolic link on the target system.
+#            source is relative to the target link
+#       control copies a file to DEBIAN/control. If SVN in installed and the current source file in 
+#            a working copy, the revision number will be appended to the version number. Also the size
+#            will be replaced by the actual size at the end of packaging 
+#       source changes the current source directory from this point forward in the file.
+#            This is very helpful when the manifest exists in a subdirectory of the project.
+#            The path is always relative to the manifest file.
 #
 # - source 
 #       ink: must be a file relative to a file on the target system, this may be 
@@ -22,13 +31,10 @@
 #       file: must be a file provided by the project being packaged
 #       dir: file is ignored.
 # - target: must be a be a location RELATIVE to the root of the target system.
-#       This MUST NOT have a leading slash.
-# - control: copies a file to DEBIAN/control. If SVN in installed and the current source file in 
-#       a working copy, the revision number will be appended to the version number. Also the size
-#       will be replaced by the actual size
-# - source: changes the current working directory from this point forward in the file.
-#       This is very helpful when the manifest exists in a subdirectory of the project.
-#       The path is always relative to the manifest file.
+#       this is ignored for control and source actions 
+# - file-mode: sets the file mode for the files being copied and any directories in the process.
+#       execute permissions are automatically given to directories.
+#       this is ignored for control and source actions
 control:control
 
 file:package-project:usr/bin/package-project:755
