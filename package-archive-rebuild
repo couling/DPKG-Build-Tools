@@ -40,7 +40,7 @@ do
 	done
 
 	cat "$archive/ReleaseHeader" > "$archive/Release" || exit 1
-	echo "Date: `date`" >> "$archive/Release"
+	echo "Date: `date -u '+%a, %d %b %Y %T %Z'`" >> "$archive/Release"
 	echo Architectures: `for file in "$archive"/*/*/ ; do file="${file#$archive/*/}" ; echo ${file%*/} ; done | 
 		sort -u` >> $archive/Release
 	echo Components: `for file in "$archive"/*/ ; do echo ${file%/} ; done` >> $archive/Release
