@@ -38,14 +38,13 @@ fi
 
 for file in "$@"
 do
-	arch="${file##*_}"
-	arch="${arch%.deb}"
+	eval `dpkg-deb --info "${file}" | awk '/^ Package:/ {print "package="$2"; "} /^ Version: / {print "version="$2"; "} /^ Architecture: / {print "arch="$2"; "}'`
 	if ! [ -d "$ARCHIVE/dists/$DIST/$RELEASE/binary-$arch" ]
 	then
 		echo repository arch "$arch" 1>&2
 		exit 1
 	fi
-	cp "$@" "$ARCHIVE/dists/$DIST/$RELEASE/binary-${arch}"
+	cp "${file}" "$ARCHIVE/dists/$DIST/$RELEASE/binary-${arch}/${package}_${version}_${arch}.deb"
 done
 
 
