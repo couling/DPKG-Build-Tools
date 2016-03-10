@@ -4,11 +4,44 @@ function calc_sums() {
 	echo $1':' >> $archive/Release
 	for section in "$archive"/*/
 	do
-		find $section -name 'Packages*' -exec $2 '{}' '+' -o -name 'Release' -exec $2 '{}' '+' | while read sum file
+		find $section -name 'Packages*' -exec $2 '{}' '+' \
+			-o -name 'Release' -exec $2 '{}' '+' \
+			-o -name 'Contents-*' -exec $2 '{}' '+' \
+			| while read sum file
 		do
 			echo "" $sum "`printf '% 16d' \`ls -l $file | awk '{print $5}'\``" ${file#$archive/}
 		done
 	done >> "$archive"/Release
+}
+
+function generate_packages() {
+	echo Building: ${arch}/Packages.gz
+	dpkg-scanpackages -m "${arch}" >  "${arch}/Packages"
+	arch_all="${arch%/*}/binary-all"
+	if [ -d "$arch_all" ]
+	then
+		echo Including: "$arch_all"
+		dpkg-scanpackages -m "$arch_all" >> "${arch}/Packages"
+	else
+		echo Warning: "$arch_all" does not exist
+	fi
+	gzip -9 < "${arch}/Packages" > "${arch}/Packages.gz"
+}
+
+function generate_contents() {
+	(
+	echo "FILE                                                    LOCATION"
+	awk '/^Filename:/ {print $2}' "${arch}/Packages" | while read package
+	do
+		section=`dpkg-deb --field "$package" Section`
+		package_name=`dpkg-deb --field "$package" Package`
+		dpkg-deb --fsys-tarfile "$package" | tar -t | while read file 
+		do
+			file="${file#./}"
+			echo "${file}	    ${section}/${package_name}"
+		done
+	done | sort | uniq
+	) | gzip -9 > "${arch%/*}/Contents-${arch##*/binary-}.gz"
 }
 
 cd $1 || exit 1
@@ -25,17 +58,8 @@ do
 		arch="${arch%/}"
 		if [ "${arch##*/}" != binary-all ]
 		then
-			echo Building: ${arch}/Packages.gz
-			dpkg-scanpackages -m "${arch}" >  "${arch}/Packages"
-			arch_all="${arch%/*}/binary-all"
-			if [ -d "$arch_all" ]
-			then
-				echo Including: "$arch_all"
-				dpkg-scanpackages -m "$arch_all" >> "${arch}/Packages"
-			else
-				echo Warning: "$arch_all" does not exist
-			fi
-			gzip -9 < "${arch}/Packages" > "${arch}/Packages.gz"
+			generate_packages
+			generate_contents
 		fi
 	done
 
