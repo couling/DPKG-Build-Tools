@@ -35,7 +35,7 @@ function generate_contents() {
 	do
 		section=`dpkg-deb --field "$package" Section`
 		package_name=`dpkg-deb --field "$package" Package`
-		dpkg-deb --fsys-tarfile "$package" | tar -t | while read file 
+		dpkg-deb --fsys-tarfile "$package" | tar -t | grep -v $/ | while read file 
 		do
 			file="${file#./}"
 			echo "${file}	    ${section}/${package_name}"
