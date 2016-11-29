@@ -3,7 +3,7 @@ Version: 1.4
 Section: devel
 Priority: optional
 Architecture: all
-Depends: bash, dpkg-dev, gnupg
+Depends: bash, dpkg-dev, gnupg, git
 Suggests:
 Conflicts:
 Replaces:

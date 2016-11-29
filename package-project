@@ -89,8 +89,14 @@ function build {
                     echo "Error: file already exists $package_folder/$target_file" >&2
                     exit 1
                 fi
-                grep -v '^Version:' "$source_folder/$source_file" | grep -v 'Installed-Size:' > "$package_folder/DEBIAN/control"
-                version=`awk '-F:' '/^Version:/ {print $2}' "$source_folder/$source_file"`
+				version=`git describe --tags --match v[0-9].[0-9]* || true`
+				if [ -n "$version" ]
+				then
+                	grep -v '^Version:' "$source_folder/$source_file" | grep -v 'Installed-Size:' > "$package_folder/DEBIAN/control"
+					echo "Version: ${version#v}" >> "$package_folder/DEBIAN/control"
+				else
+					grep -v 'Installed-Size:' "$source_folder/$source_file" > "$package_folder/DEBIAN/control"
+				fi
             elif [ "$action" = 'source' ]
             then
                 source_folder=`dirname "$manifest"`/"$source_file"
@@ -112,11 +118,6 @@ function build {
             fi
         done
     )
-    if which svn > /dev/null
-    then
-        version="${version}r`svn info $source_folder | awk '-F:' '/^Revision:/ {gsub(/ /,"",$2); print $2}'`"
-    fi
-    echo "Version:${version}" >> "$package_folder/DEBIAN/control"
 
     size=`find "$package_folder" -type f -exec ls -l  '{}' ';' | awk 'BEGIN {x=0} {x=x+$5} END {print int(x/1024)}'`
     echo "Installed-Size: $size" >> "$package_folder/DEBIAN/control"
