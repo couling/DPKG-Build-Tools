@@ -5,108 +5,55 @@
 set -e
 
 function build {
-    source_folder=`dirname "$manifest"`
-    source_folder=`readlink -m "$source_folder"`
-    package_folder="/tmp/package-project-$$"
-
-    if [ -z "$manifest" ]
-    then
-        echo "Error: No manifest specifed" >&2
-        exit 1
-    fi
-
     if ! [ -f "$manifest" ]
     then
-        echo "Error: manifest $manifest does not exist or is not a regular file" >&2
+        echo "Error: Manifest not found $manifest" >&2
         exit 1
     fi
-
-    if [ -d "$package_folder" ]
-    then
-        rm -rf "$package_folder"
-    fi
-    mkdir "$package_folder"
-
-
+    
+    package_folder="`.package_${manifest}_$$`"
     # From this point forward we need to delet the temp folder if anything fails.
-    trap 'x=$? ; chmod -R u+w $package_folder ; rm -rf "$package_folder" "$package_folder.manifest"; exit $x' INT TERM EXIT
+    trap 'x=$? ; chmod -R u+w "$package_folder" ; rm -rf "$package_folder"; exit $x' INT TERM EXIT
+    echo "Assembling pacakge in $manifest"
 
     mkdir -p "$package_folder/DEBIAN"
     chmod 755 "$package_folder/DEBIAN"
     
-    IFS=':'
-    grep -v '^#' "$manifest" > "$package_folder.manifest"
     while read action source_file target_file file_mode
     do
         target_file="${target_file#/}"
-        if [ -n "$action" ] 
-        then
-            echo "Processing: $action - $source_file - $target_file"
-            mkdir -p `dirname "$package_folder/$target_file"`
+        
+        dirmode="$(( 
+              ( ( ( $file_mode % 10 & 4 ) / 4 | ($file_mode % 10) ) ) 
+            + ( ( ( $file_mode / 10 % 10 & 4 ) / 4 | ($file_mode / 10 % 10) ) * 10 ) 
+            + ( ( ( $file_mode / 100 & 4 ) / 4 | ($file_mode / 100) ) * 100) 
+            ))"
 
-            if [ "$action" = 'file' ]
-            then
-                if [ -e "$package_folder/$target_file" ]
-                then
-                    echo "Error: file already exists $package_folder/$target_file" >&2
-                    exit 1
-                fi
-                cp -r "$source_folder/$source_file" "$package_folder/$target_file"
-                if [ -n "$file_mode" ]
-                then
-                    dirmode="$(( 
-                      ( ( ( $file_mode % 10 & 4 ) / 4 | ($file_mode % 10) ) ) 
-                    + ( ( ( $file_mode / 10 % 10 & 4 ) / 4 | ($file_mode / 10 % 10) ) * 10 ) 
-                    + ( ( ( $file_mode / 100 & 4 ) / 4 | ($file_mode / 100) ) * 100) 
-                    ))"
-                    find "$package_folder/$target_file" -type f -exec chmod "$file_mode" '{}' +
-                    find "$package_folder/$target_file" -type d -exec chmod "$dirmode"   '{}' +
-                fi
-            elif [ "$action" = 'link' ]
-            then
-                if [ -e "$package_folder/$target_file" ]
-                then
-                    echo "Error: file already exists $package_folder/$target_file" >&2
-                    exit 1
-                fi
-                ln -s "$source_file" "$package_folder/$target_file"
-            elif [ "$action" = 'dir' ]
-            then
-                if [ -e "$package_folder/$target_file" ]
-                then
-                    echo "Error: file already exists $package_folder/$target_file" >&2
-                    exit 1
-                fi
-                mkdir -p "$package_folder/$target_file"
-                if [ -n "$file_mode" ]
-                then
-                    chmod -R "$file_mode" "$package_folder/$target_file"
-                fi
-            elif [ "$action" = 'control' ]
-            then
-                if [ -e "$package_folder/DEBIAN/control" ]
-                then
-                    echo "Error: file already exists $package_folder/$target_file" >&2
-                    exit 1
-                fi
-				version=`git describe --tags --match v[0-9].[0-9]* || true`
-				if [ -n "$version" ]
-				then
-                	grep -v '^Version:' "$source_folder/$source_file" | grep -v 'Installed-Size:' > "$package_folder/DEBIAN/control"
-					echo "Version: ${version#v}" >> "$package_folder/DEBIAN/control"
-				else
-					grep -v 'Installed-Size:' "$source_folder/$source_file" > "$package_folder/DEBIAN/control"
-				fi
-            elif [ "$action" = 'source' ]
-            then
-                source_folder=`dirname "$manifest"`/"$source_file"
-                source_folder=`readlink -m "$source_folder"`
-            else 
-                echo "Error: unknown action $action" >&2
-                exit 1
-            fi 
-        fi
-    done < "$package_folder.manifest"
+        if [ "$action" = 'file' ]
+        then
+            prep_source_and_target
+            copy_file
+        elif [ "$action" = 'link' ]
+        then
+            prep_source_and_target
+            create_link
+        elif [ "$action" = 'dir' ]
+        then
+            source_file="$target_file"
+            unset target_file
+            prep_source_and_target
+            create_dir
+        elif [ "$action" = 'control' ]
+        then
+            create_control
+        elif [ "$action" = 'source' ]
+        then
+            change_source "$source_file"
+        else 
+            echo "Error: unknown action $action" >&2
+            exit 1
+        fi 
+    done < <(grep -v '^#' "$manifest")
 
     (
         cd "$package_folder" ; 
@@ -114,7 +61,7 @@ function build {
         do
             if [ "$file" != DEBIAN ]
             then
-                find $file -type f -exec md5sum  '{}' + >> "$package_folder/DEBIAN/md5sums"
+                find $file -type f -exec md5sum  '{}' '+' >> "$package_folder/DEBIAN/md5sums"
             fi
         done
     )
@@ -128,6 +75,78 @@ function build {
 
     fakeroot dpkg-deb --build "$package_folder" .
 
+}
+
+function prep_source_and_target {
+    if [ -n "$source_folder" ]
+    then
+        echo "Warning: No source specified" >&2
+        change_source .
+    fi
+
+    if [ -e "$package_folder/$target_file" ]
+    then
+        echo "Error: file already exists $package_folder/$target_file" >&2
+        exit 1
+    fi
+
+    parent_dir=`dirname "$package_folder/$target_file"`
+    if [ -n "$dirmode" ]
+    then
+        mkdir --parents --mode $dirmode `dirname "$package_folder/$target_file"`
+    else
+        mkdir --parents $dirmode `dirname "$package_folder/$target_file"`
+    fi
+}
+
+function change_source {
+    source_folder=`dirname "$manifest"`/"$1"
+    source_folder=`readlink -m "$1"`
+    echo "Files from: $1"
+}
+
+function copy_file {
+    echo -e "Processing: $action -\t$source_file -\t$target_file"
+    
+    cp -r "$source_folder/$source_file" "$package_folder/$target_file"
+    if [ -n "$file_mode" ]
+    then      
+        find "$package_folder/$target_file" -type f -exec chmod "$file_mode" '{}' +
+        find "$package_folder/$target_file" -type d -exec chmod "$dirmode"   '{}' +
+    fi
+}
+
+function create_link {
+    echo -e "Processing: $action -\t-\t$target_file --> $source_file"
+        
+    ln -s "$source_file" "$package_folder/$target_file"
+}
+
+function create_dir {
+    echo -e "Processing: $action -\t-\t$target_file"
+    if [ -n "$file_mode" ]
+    then
+        mkdir --mode $file_mode "$package_folder/$target_file"
+    else
+        mkdir "$package_folder/$target_file"
+    fi
+}
+
+function create_control {
+    echo -e "Processing: $action -\t$source_file -\t$target_file"
+    if [ -e "$package_folder/DEBIAN/control" ]
+    then
+        echo "Error: file already exists $package_folder/$target_file" >&2
+        exit 1
+    fi
+    version=`git describe --tags --match v[0-9].[0-9]* || true`
+    if [ -n "$version" ]
+    then
+        grep -v '^Version:' "$source_folder/$source_file" | grep -v 'Installed-Size:' > "$package_folder/DEBIAN/control"
+        echo "Version: ${version#v}" >> "$package_folder/DEBIAN/control"
+    else
+        grep -v 'Installed-Size:' "$source_folder/$source_file" > "$package_folder/DEBIAN/control"
+    fi
 }
 
 for manifest in "$@"
