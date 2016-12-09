@@ -11,40 +11,46 @@ function build {
         exit 1
     fi
     
-    package_folder="`.package_${manifest}_$$`"
+    package_folder="`mktemp --directory \".package_${manifest}_XXX\"`"
     # From this point forward we need to delet the temp folder if anything fails.
-    trap 'x=$? ; chmod -R u+w "$package_folder" ; rm -rf "$package_folder"; exit $x' INT TERM EXIT
-    echo "Assembling pacakge in $manifest"
+    #trap 'x=$? ; chmod -R u+w "$package_folder" ; rm -rf "$package_folder"; exit $x' INT TERM EXIT
+    echo "Assembling pacakge in $package_folder"
 
-    mkdir -p "$package_folder/DEBIAN"
-    chmod 755 "$package_folder/DEBIAN"
+    mkdir --mode 755 "$package_folder/DEBIAN"
     
     while read action source_file target_file file_mode
     do
         target_file="${target_file#/}"
-        
-        dirmode="$(( 
-              ( ( ( $file_mode % 10 & 4 ) / 4 | ($file_mode % 10) ) ) 
-            + ( ( ( $file_mode / 10 % 10 & 4 ) / 4 | ($file_mode / 10 % 10) ) * 10 ) 
-            + ( ( ( $file_mode / 100 & 4 ) / 4 | ($file_mode / 100) ) * 100) 
-            ))"
+       	if [ -n "$file_mode" ] 
+		then 
+            dirmode="$(( 
+                  ( ( ( $file_mode % 10 & 4 ) / 4 | ($file_mode % 10) ) ) 
+                + ( ( ( $file_mode / 10 % 10 & 4 ) / 4 | ($file_mode / 10 % 10) ) * 10 ) 
+                + ( ( ( $file_mode / 100 & 4 ) / 4 | ($file_mode / 100) ) * 100) 
+                ))"
+		else
+			dirmode=""
+		fi
 
         if [ "$action" = 'file' ]
         then
-            prep_source_and_target
+			prep_source
+			prep_target
             copy_file
         elif [ "$action" = 'link' ]
         then
-            prep_source_and_target
+            prep_target
             create_link
         elif [ "$action" = 'dir' ]
         then
             source_file="$target_file"
             unset target_file
-            prep_source_and_target
+            prep_source
+            prep_target
             create_dir
         elif [ "$action" = 'control' ]
         then
+            prep_source
             create_control
         elif [ "$action" = 'source' ]
         then
@@ -53,7 +59,7 @@ function build {
             echo "Error: unknown action $action" >&2
             exit 1
         fi 
-    done < <(grep -v '^#' "$manifest")
+    done < <(grep -v '^[ \t]*#\|^[ \t]*$' "$manifest")
 
     (
         cd "$package_folder" ; 
@@ -61,7 +67,7 @@ function build {
         do
             if [ "$file" != DEBIAN ]
             then
-                find $file -type f -exec md5sum  '{}' '+' >> "$package_folder/DEBIAN/md5sums"
+                find "$file" -type f -exec md5sum  '{}' '+' >> DEBIAN/md5sums
             fi
         done
     )
@@ -77,13 +83,15 @@ function build {
 
 }
 
-function prep_source_and_target {
-    if [ -n "$source_folder" ]
+function prep_source {
+    if [ -z "$source_folder" ]
     then
         echo "Warning: No source specified" >&2
         change_source .
-    fi
+    fi	
+}
 
+function prep_target {
     if [ -e "$package_folder/$target_file" ]
     then
         echo "Error: file already exists $package_folder/$target_file" >&2
@@ -101,12 +109,12 @@ function prep_source_and_target {
 
 function change_source {
     source_folder=`dirname "$manifest"`/"$1"
-    source_folder=`readlink -m "$1"`
-    echo "Files from: $1"
+    source_folder=`readlink -m "$source_folder"`
+    echo "Files from: $source_folder"
 }
 
 function copy_file {
-    echo -e "Processing: $action -\t$source_file -\t$target_file"
+    echo "$action\tfrom\t$source_file\tto\t$target_file"
     
     cp -r "$source_folder/$source_file" "$package_folder/$target_file"
     if [ -n "$file_mode" ]
@@ -117,13 +125,13 @@ function copy_file {
 }
 
 function create_link {
-    echo -e "Processing: $action -\t-\t$target_file --> $source_file"
+    echo -e "Processing: $action\t-\t$target_file\t-->\t$source_file"
         
     ln -s "$source_file" "$package_folder/$target_file"
 }
 
 function create_dir {
-    echo -e "Processing: $action -\t-\t$target_file"
+    echo -e "Processing: $action\t-\t-\t$target_file"
     if [ -n "$file_mode" ]
     then
         mkdir --mode $file_mode "$package_folder/$target_file"
@@ -133,7 +141,7 @@ function create_dir {
 }
 
 function create_control {
-    echo -e "Processing: $action -\t$source_file -\t$target_file"
+    echo -e "Processing: $action\tfrom\t$source_file"
     if [ -e "$package_folder/DEBIAN/control" ]
     then
         echo "Error: file already exists $package_folder/$target_file" >&2
