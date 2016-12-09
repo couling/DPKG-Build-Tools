@@ -13,7 +13,7 @@ function build {
     
     package_folder="`mktemp --directory \".package_${manifest}_XXX\"`"
     # From this point forward we need to delet the temp folder if anything fails.
-    #trap 'x=$? ; chmod -R u+w "$package_folder" ; rm -rf "$package_folder"; exit $x' INT TERM EXIT
+    trap 'x=$? ; chmod -R u+w "$package_folder" ; rm -rf "$package_folder"; exit $x' INT TERM EXIT
     echo "Assembling pacakge in $package_folder"
 
     mkdir --mode 755 "$package_folder/DEBIAN"
