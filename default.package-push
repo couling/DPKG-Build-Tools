@@ -1,4 +1,4 @@
-ARCHIVE=/srv/apache/www.pedal.me.uk/content/packages
+ARCHIVE=~/apt-packages
 DIST=personal
-RELEASE=server
+RELEASE=personal
 SET_GROUP=www-data
