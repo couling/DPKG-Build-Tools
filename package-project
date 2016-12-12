@@ -53,8 +53,11 @@ function build {
             create_dir
         elif [ "$action" = 'control' ]
         then
+            target_file=DEBIAN/control
+            file_mode=644
 			printf '%-10s%-40s/%-60s%-5s\n' "$action" "$source_file" DEBIAN/control 644
             prep_source
+            prep_target
             create_control
         elif [ "$action" = 'source' ]
         then
@@ -141,18 +144,24 @@ function create_dir {
 }
 
 function create_control {
-    if [ -e "$package_folder/DEBIAN/control" ]
-    then
-        echo "Error: file already exists $package_folder/$target_file" >&2
-        exit 1
-    fi
+    grep -v 'Installed-Size:' "$source_folder/$source_file" > "$package_folder/DEBIAN/control"
+    
     version=`git describe --tags --match v[0-9].[0-9]* || true`
     if [ -n "$version" ]
     then
-        grep -v '^Version:' "$source_folder/$source_file" | grep -v 'Installed-Size:' > "$package_folder/DEBIAN/control"
-        echo "Version: ${version#v}" >> "$package_folder/DEBIAN/control"
-    else
-        grep -v 'Installed-Size:' "$source_folder/$source_file" > "$package_folder/DEBIAN/control"
+        temp_file=`mktemp "$package_folder/DEBIAN/control_XXX"`
+        grep -v '^Version:' "$package_folder/DEBIAN/control" > "$tmp_file"
+        echo "Version: ${version#v}" >> "$tmp_file"
+        mv "$tmp_file" "$package_folder/DEBIAN/control"
+    fi
+    
+    if [ -n "$ARCH" ]
+        temp_file=`mktemp "$package_folder/DEBIAN/control_XXX"`
+        grep -v '^Architecture:' "$package_folder/DEBIAN/control" > "$tmp_file"
+        echo "Architecture: $ARCH" >> "$tmp_file"
+        mv "$tmp_file" "$package_folder/DEBIAN/control"
+    then
+        
     fi
 	chmod 644 "$package_folder/DEBIAN/control"
 }
