@@ -21,47 +21,47 @@ function build {
     while read action source_file target_file file_mode
     do
         target_file="${target_file#/}"
-       	if [ -n "$file_mode" ] 
-		then 
+        if [ -n "$file_mode" ] 
+        then 
             dirmode="$(( 
                   ( ( ( $file_mode % 10 & 4 ) / 4 | ($file_mode % 10) ) ) 
                 + ( ( ( $file_mode / 10 % 10 & 4 ) / 4 | ($file_mode / 10 % 10) ) * 10 ) 
                 + ( ( ( $file_mode / 100 & 4 ) / 4 | ($file_mode / 100) ) * 100) 
                 ))"
-		else
-			dirmode=""
-		fi
+        else
+            dirmode=""
+        fi
 
         if [ "$action" = 'file' ]
         then
-			printf '%-10s%-40s/%-60s%-5s\n' "$action" "$source_file" "$target_file" "$file_mode"
-			prep_source
-			prep_target
+            printf '%-10s%-40s/%-60s%-5s\n' "$action" "$source_file" "$target_file" "$file_mode"
+            prep_source
+            prep_target
             copy_file
         elif [ "$action" = 'link' ]
         then
-			printf '%-10s%-40s/%s --> %s\n' "$action" "" "$target_file" "$source_file"
+            printf '%-10s%-40s/%s --> %s\n' "$action" "" "$target_file" "$source_file"
             prep_target
             create_link
         elif [ "$action" = 'dir' ]
         then
-			file_mode="$target_file"
-			target_file="${source_file#/}"
+            file_mode="$target_file"
+            target_file="${source_file#/}"
             unset source_file
-			printf '%-10s%-40s/%-60s%-5s\n' "$action" "$source_file" "$target_file" "$file_mode"
+            printf '%-10s%-40s/%-60s%-5s\n' "$action" "$source_file" "$target_file" "$file_mode"
             prep_target
             create_dir
         elif [ "$action" = 'control' ]
         then
             target_file=DEBIAN/control
             file_mode=644
-			printf '%-10s%-40s/%-60s%-5s\n' "$action" "$source_file" DEBIAN/control 644
+            printf '%-10s%-40s/%-60s%-5s\n' "$action" "$source_file" DEBIAN/control 644
             prep_source
             prep_target
             create_control
         elif [ "$action" = 'source' ]
         then
-			printf '%-10s%-40s\n' "$action" "$source_file"
+            printf '%-10s%-40s\n' "$action" "$source_file"
             change_source "$source_file"
         else 
             echo "Error: unknown action $action" >&2
@@ -156,13 +156,13 @@ function create_control {
     fi
     
     if [ -n "$ARCH" ]
-	then
+    then
         temp_file=`mktemp "$package_folder/DEBIAN/control_XXX"`
         grep -v '^Architecture:' "$package_folder/DEBIAN/control" > "$temp_file"
         echo "Architecture: $ARCH" >> "$temp_file"
         mv "$temp_file" "$package_folder/DEBIAN/control"
     fi
-	chmod 644 "$package_folder/DEBIAN/control"
+    chmod 644 "$package_folder/DEBIAN/control"
 }
 
 for manifest in "$@"
