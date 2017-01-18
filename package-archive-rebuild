@@ -41,7 +41,7 @@ function generate_contents() {
 			echo "${file}	    ${section}/${package_name}"
 		done
 	done | sort | uniq
-	) | gzip -9 > "${arch%/*}/Contents-${arch##*/binary-}.gz"
+	) | gzip -9 > "${archive}/Contents-${arch##*/binary-}.gz"
 }
 
 cd $1 || exit 1
