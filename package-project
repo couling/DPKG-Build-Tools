@@ -146,7 +146,7 @@ function create_dir {
 function create_control {
     grep -v 'Installed-Size:' "$source_folder/$source_file" > "$package_folder/DEBIAN/control"
     
-    version=`( cd "$source_folder" && git describe --tags --match v[0-9].[0-9]* ) || true`
+    version=`( cd "$source_folder" && git describe --tags --match v[0-9]*.[0-9]* ) || true`
     if [ -n "$version" ]
     then
         temp_file=`mktemp "$package_folder/DEBIAN/control_XXX"`
