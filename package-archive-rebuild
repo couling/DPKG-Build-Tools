@@ -22,7 +22,7 @@ function generate_packages() {
 	else
 		echo Warning: "$arch_all" does not exist
 	fi
-	gzip -9 < "${arch}/Packages" > "${arch}/Packages.gz"
+	gzip -9fk "${arch}/Packages"
 }
 
 function generate_contents() {
@@ -42,7 +42,6 @@ function generate_contents() {
 			echo "${file}	    ${section}/${package_name}"
 		done
 	done | sort | uniq | tee -a "${archive}/Contents-${arch##*/binary-}"  >> "${arch%/*}/Contents-${arch##*/binary-}"
-	gzip -9f "${arch%/*}/Contents-${arch##*/binary-}"
 }
 
 cd $1 || exit 1
@@ -54,6 +53,8 @@ do
 	archive="dists/$archive"
 	echo "Archive: `pwd`/$archive"
 
+	find $archive -name 'Contents-*' -exec rm '{}' '+'
+
 	for arch in "$archive"/*/*/
 	do
 		arch="${arch%/}"
@@ -64,8 +65,7 @@ do
 		fi
 	done
 
-	rm "${archive}/Contents-"*.gz
-	gzip -9f "${archive}/Contents-"*
+	find $archive -name 'Contents-*' -exec gzip -9k '{}' '+'
 
 	cat "$archive/ReleaseHeader" > "$archive/Release" || exit 1
 	echo "Date: `date -u '+%a, %d %b %Y %T %Z'`" >> "$archive/Release"
