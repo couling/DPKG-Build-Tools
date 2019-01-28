@@ -2,16 +2,13 @@
 
 function calc_sums() {
 	echo $1':' >> $archive/Release
-	for section in "$archive"/*/
-	do
-		find $section -name 'Packages*' -exec $2 '{}' '+' \
-			-o -name 'Release' -exec $2 '{}' '+' \
-			-o -name 'Contents-*' -exec $2 '{}' '+' \
-			| while read sum file
+	find $archive -name 'Packages*' -exec $2 '{}' '+' \
+		-o -path "$archive/*/*/Release" -exec $2 '{}' '+' \
+		-o -name 'Contents-*' -exec $2 '{}' '+' \
+		| while read sum file
 		do
 			echo "" $sum "`printf '% 16d' \`ls -l $file | awk '{print $5}'\``" ${file#$archive/}
-		done
-	done >> "$archive"/Release
+		done >> "$archive"/Release
 }
 
 function generate_packages() {
@@ -29,8 +26,12 @@ function generate_packages() {
 }
 
 function generate_contents() {
-	(
-	echo "FILE                                                    LOCATION"
+	echo "FILE                                                    LOCATION" > "${arch%/*}/Contents-${arch##*/binary-}"
+	if ! [ -f "${archive}/Contents-${arch##*/binary-}" ]
+	then
+		echo "FILE                                                    LOCATION" > "${archive}/Contents-${arch##*/binary-}"
+	fi
+
 	awk '/^Filename:/ {print $2}' "${arch}/Packages" | while read package
 	do
 		section=`dpkg-deb --field "$package" Section`
@@ -40,8 +41,8 @@ function generate_contents() {
 			file="${file#./}"
 			echo "${file}	    ${section}/${package_name}"
 		done
-	done | sort | uniq
-	) | gzip -9 > "${archive}/Contents-${arch##*/binary-}.gz"
+	done | sort | uniq | tee -a "${archive}/Contents-${arch##*/binary-}"  >> "${arch%/*}/Contents-${arch##*/binary-}"
+	gzip -9f "${arch%/*}/Contents-${arch##*/binary-}"
 }
 
 cd $1 || exit 1
@@ -62,6 +63,9 @@ do
 			generate_contents
 		fi
 	done
+
+	rm "${archive}/Contents-"*.gz
+	gzip -9f "${archive}/Contents-"*
 
 	cat "$archive/ReleaseHeader" > "$archive/Release" || exit 1
 	echo "Date: `date -u '+%a, %d %b %Y %T %Z'`" >> "$archive/Release"
